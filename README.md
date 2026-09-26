@@ -83,7 +83,9 @@ When `service.source.type == "odp"`, inspect that Service's live ODP document, t
 `ServiceClient.get_collection()` for current details. OpenAPI Collections are Directory presentation
 groups, not ODP operation targets. The result's `indexed_at` describes Collection freshness;
 `service.indexed_at` describes parent freshness. `service.service_id` is the Directory's Service identifier. A Service result can
-have `available_through` platform attribution; a Collection's attribution is its owning `service`.
+have optional `publisher` attribution with `publisher_id`, `name`, and `website_url`.
+The website is a display link, not a discovery or execution target. Omitted or null publisher
+attribution is accepted, and additional fields are preserved. A Collection's attribution is its owning `service`.
 
 Malformed known results are omitted and reported in `issues` with their original response index.
 Unknown future types retain their full JSON in `UnknownResult.raw`; do not treat them as Services

@@ -69,10 +69,11 @@ def transport_for(body: object) -> QueueTransport:
 @pytest.mark.asyncio
 async def test_mixed_results_metadata_unknown_types_and_requests() -> None:
     first = item("service")
-    first["available_through"] = {
-        "service_id": "platform",
-        "service_origin": "https://platform.example",
+    first["publisher"] = {
+        "publisher_id": "platform",
+        "website_url": "https://platform.example/catalog",
         "name": "Platform",
+        "extra": True,
     }
     first["extra"] = True
     future: dict[str, JsonValue] = {"type": "future", "nested": {"value": 42}}
@@ -93,8 +94,10 @@ async def test_mixed_results_metadata_unknown_types_and_requests() -> None:
     first_result, second, third = result.items
     assert isinstance(first_result, ServiceResult)
     assert first_result.service.service_id == "parent"
-    assert first_result.available_through is not None
-    assert first_result.available_through.name == "Platform"
+    assert first_result.publisher is not None
+    assert first_result.publisher.name == "Platform"
+    assert first_result.publisher.additional["extra"] is True
+    assert first_result.publisher.website_url == "https://platform.example/catalog"
     assert first_result.additional["extra"] is True
     assert len(first_result.service.operations) == 2
     assert first_result.service.protocols is not None
@@ -177,9 +180,10 @@ async def test_optional_members_and_unverified_metadata() -> None:
     parent.pop("protocols")
     parent["http"] = {"endpoint_base": "https://untrusted.example/"}
     first["service"] = parent
-    first["available_through"] = {
-        "service_id": "platform",
-        "service_origin": "https://platform.example",
+    first["publisher"] = {
+        "publisher_id": "platform",
+        "website_url": "https://platform.example/catalog",
+        "name": "Platform",
     }
     empty_description = item()
     empty_description["collection"] = {"id": "Weather", "name": "Weather", "description": ""}
@@ -195,10 +199,40 @@ async def test_optional_members_and_unverified_metadata() -> None:
     assert isinstance(parsed, ServiceResult)
     assert "http" not in parsed.service.additional
     assert parsed.service.protocols is None
-    assert parsed.available_through is not None and parsed.available_through.name is None
+    assert parsed.publisher is not None and parsed.publisher.name == "Platform"
     parent = parsed.service.to_dict()
     parent.pop("service_id")
     assert DirectoryService.model_validate(parent).service_id is None
+
+
+@pytest.mark.asyncio
+async def test_publisher_omission_null_and_additional_fields() -> None:
+    first = item("service")
+    first["publisher"] = None
+    first["available_through"] = {"service_id": "legacy"}
+    first["future_metadata"] = {"arbitrary": True}
+    result = await DirectoryClient(
+        transport=transport_for({"items": [first, item("service")]})
+    ).search(ResourceSearchRequest())
+    assert not result.issues
+    assert len(result.items) == 2
+    parsed = result.items[0]
+    assert isinstance(parsed, ServiceResult) and parsed.publisher is None
+    assert parsed.additional["available_through"] == {"service_id": "legacy"}
+    assert parsed.additional["future_metadata"] == {"arbitrary": True}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "website", ["http://platform.example", "https://user@platform.example", "https:///missing"]
+)
+async def test_publisher_website_validation(website: str) -> None:
+    first = item("service")
+    first["publisher"] = {"publisher_id": "gateway", "name": "Gateway", "website_url": website}
+    result = await DirectoryClient(
+        transport=transport_for({"items": [first, item("service")]})
+    ).search(ResourceSearchRequest())
+    assert len(result.issues) == 1 and len(result.items) == 1
 
 
 @pytest.mark.asyncio

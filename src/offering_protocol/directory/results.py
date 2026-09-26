@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from pydantic import JsonValue, TypeAdapter
 
@@ -90,12 +91,13 @@ def _native_service(service: dict[str, JsonValue]) -> None:
 
 def _finish_result(raw: dict[str, JsonValue], kind: str) -> DirectoryResult:
     if kind == "service":
-        if "available_through" in raw:
-            reference = _OBJECT.validate_python(raw["available_through"])
-            _text(reference, "service_id", 128)
-            _origin(reference)
-            if "name" in reference:
-                _text(reference, "name", 128)
+        if raw.get("publisher") is not None:
+            publisher = _OBJECT.validate_python(raw["publisher"])
+            _text(publisher, "publisher_id", 128)
+            _text(publisher, "name", 128)
+            website = urlsplit(_text(publisher, "website_url", 512))
+            if website.scheme != "https" or not website.hostname or website.username is not None:
+                raise ValueError("Publisher website must be an HTTPS URL without credentials")
         return ServiceResult.model_validate(raw)
     collection = _OBJECT.validate_python(raw.get("collection"))
     if not is_local_resource_identifier(_text(collection, "id", 128)):

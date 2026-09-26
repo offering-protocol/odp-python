@@ -109,10 +109,10 @@ class DirectoryIndexedService(OdpModel):
     website_url: str | None = None
 
 
-class ServiceReference(OdpModel):
-    service_id: str
-    service_origin: str
-    name: str | None = None
+class Publisher(OdpModel):
+    publisher_id: str
+    name: str
+    website_url: str
 
 
 class CollectionSummary(OdpModel):
@@ -125,7 +125,7 @@ class ServiceResult(OdpModel):
     type: Literal["service"]
     service: DirectoryIndexedService
     indexed_at: str
-    available_through: ServiceReference | None = None
+    publisher: Publisher | None = None
 
 
 class CollectionResult(OdpModel):
